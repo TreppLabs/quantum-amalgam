@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Resource {
   name: string;
@@ -274,11 +274,10 @@ const GameGrid: React.FC = () => {
     total + row.reduce((rowTotal, cell) => rowTotal + (cell.owned ? 1 : 0), 0), 0
   );
 
-  const mineResources = (currentGrid: Cell[][], currentResources: Record<string, number>) => {
+  const mineResources = useCallback((currentGrid: Cell[][], currentResources: Record<string, number>) => {
     const newGrid = currentGrid.map(row => [...row]);
     const newResources = { ...currentResources };
 
-    // Mine new resources
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
         const cell = currentGrid[row][col];
@@ -291,68 +290,69 @@ const GameGrid: React.FC = () => {
         }
       }
     }
-
     return { newGrid, newResources };
-  };
+  }, []);
 
-  const handleKeyPress = (event: KeyboardEvent) => {
-    const newGrid = [...grid.map(row => [...row])];
-    let changed = false;
+  const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    // Use functional update so we always work with the latest grid.
+    setGrid(prevGrid => {
+      const newGrid = prevGrid.map(row => [...row]);
+      let changed = false;
 
-    // First check if the move is valid
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
-        if (grid[row][col].owned) {
-          switch (event.key) {
-            case 'ArrowUp':
-              if (row > 0 && !grid[row - 1][col].owned) {
-                newGrid[row - 1][col] = { ...newGrid[row - 1][col], owned: true, owner: 'player' };
-                changed = true;
-              }
-              break;
-            case 'ArrowDown':
-              if (row < GRID_SIZE - 1 && !grid[row + 1][col].owned) {
-                newGrid[row + 1][col] = { ...newGrid[row + 1][col], owned: true, owner: 'player' };
-                changed = true;
-              }
-              break;
-            case 'ArrowLeft':
-              if (col > 0 && !grid[row][col - 1].owned) {
-                newGrid[row][col - 1] = { ...newGrid[row][col - 1], owned: true, owner: 'player' };
-                changed = true;
-              }
-              break;
-            case 'ArrowRight':
-              if (col < GRID_SIZE - 1 && !grid[row][col + 1].owned) {
-                newGrid[row][col + 1] = { ...newGrid[row][col + 1], owned: true, owner: 'player' };
-                changed = true;
-              }
-              break;
+      for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+          if (prevGrid[row][col].owned) {
+            switch (event.key) {
+              case 'ArrowUp':
+                if (row > 0 && !prevGrid[row - 1][col].owned) {
+                  newGrid[row - 1][col] = { ...newGrid[row - 1][col], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+              case 'ArrowDown':
+                if (row < GRID_SIZE - 1 && !prevGrid[row + 1][col].owned) {
+                  newGrid[row + 1][col] = { ...newGrid[row + 1][col], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+              case 'ArrowLeft':
+                if (col > 0 && !prevGrid[row][col - 1].owned) {
+                  newGrid[row][col - 1] = { ...newGrid[row][col - 1], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+              case 'ArrowRight':
+                if (col < GRID_SIZE - 1 && !prevGrid[row][col + 1].owned) {
+                  newGrid[row][col + 1] = { ...newGrid[row][col + 1], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+            }
           }
         }
       }
-    }
 
-    if (changed) {
-      // First combine existing resources
-      const combinedResources = combineResources(resources);
-      
-      // Then mine new resources, passing in the combined resources
-      const { newGrid: minedGrid, newResources: finalResources } = mineResources(newGrid, combinedResources);
-      
-      // Update both states at once
-      setGrid(minedGrid);
-      setResources(finalResources);
-      setTurnCount(prev => prev + 1);
-    }
-  };
+      if (changed) {
+        // Use functional update for resources as well.
+        setResources(prevResources => {
+          const combinedResources = combineResources(prevResources);
+          const { newGrid: minedGrid, newResources: finalResources } = mineResources(newGrid, combinedResources);
+          // Update grid and turn counter with the new state.
+          setGrid(minedGrid);
+          setTurnCount(prev => prev + 1);
+          return finalResources;
+        });
+      }
+      return prevGrid;
+    });
+  }, [mineResources]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [grid, resources]);
+  }, [handleKeyPress]);
 
   return (
     <div className="flex h-screen w-full">
