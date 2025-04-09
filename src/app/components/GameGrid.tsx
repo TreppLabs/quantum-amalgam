@@ -126,7 +126,7 @@ const COMBINATIONS: Record<CombinationKey, string> = {
 };
 
 // All resources array
-const ALL_RESOURCES = [...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY];
+// const ALL_RESOURCES = [...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY];
 
 interface Cell {
   id: string;
@@ -263,6 +263,11 @@ const createYConnector = (input1: TierLayout, input2: TierLayout, output: TierLa
           L ${output.connectorEnd.x} ${output.connectorEnd.y}`;
 };
 
+// Add this helper function before the GameGrid component
+const getResourceStyle = (resource: Resource) => {
+  return `${resource.iconClasses} ${resource.color}`;
+};
+
 const GameGrid: React.FC = () => {
   const [grid, setGrid] = useState<Cell[][]>(() => createInitialGrid(false));
   const [turnCount, setTurnCount] = useState(0);
@@ -297,7 +302,7 @@ const GameGrid: React.FC = () => {
     return { newGrid, newResources };
   };
 
-  const handleKeyPress = (event: KeyboardEvent) => {
+  const handleMove = (key: string) => {
     const newGrid = [...grid.map(row => [...row])];
     let changed = false;
 
@@ -305,7 +310,7 @@ const GameGrid: React.FC = () => {
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
         if (grid[row][col].owned) {
-          switch (event.key) {
+          switch (key) {
             case 'ArrowUp':
               if (row > 0 && !grid[row - 1][col].owned) {
                 newGrid[row - 1][col] = { ...newGrid[row - 1][col], owned: true, owner: 'player' };
@@ -350,27 +355,29 @@ const GameGrid: React.FC = () => {
   };
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
-    return () => {
-      window.removeEventListener('keydown', handleKeyPress);
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+      
+      event.preventDefault();
+      handleMove(event.key);
     };
-  }, [grid, resources]);
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [handleMove]);
 
   return (
     <div className="flex h-screen w-full">
       {/* Game Grid - Left 65% */}
       <div className="w-[65%] h-full flex items-center justify-center p-4">
         <div className="gap-0.5" style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))` }}>
-          {grid.map((row, rowIndex) =>
-            row.map((cell, colIndex) => (
+          {grid.map((row, _rowIndex) =>
+            row.map((cell, _colIndex) => (
               <div
-                key={cell.id}
+                key={`${_rowIndex}-${_colIndex}`}
                 className={`
                   w-8 h-8 border border-gray-300 flex items-center justify-center relative
-                  ${cell.owned 
-                    ? 'bg-green-500 border-green-700' 
-                    : 'bg-gray-200 border-gray-400'
-                  }
+                  ${cell.owned ? 'bg-green-500 border-green-700' : 'bg-gray-200 border-gray-400'}
                 `}
               >
                 {cell.owned && (
