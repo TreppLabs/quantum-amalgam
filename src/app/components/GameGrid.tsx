@@ -125,8 +125,6 @@ const COMBINATIONS: Record<CombinationKey, string> = {
   'Astral Matrix+Terra Nova': 'Quantum Amalgam'
 };
 
-// All resources array
-const ALL_RESOURCES = [...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY];
 
 interface Cell {
   id: string;
@@ -361,8 +359,8 @@ const GameGrid: React.FC = () => {
       {/* Game Grid - Left 65% */}
       <div className="w-[65%] h-full flex items-center justify-center p-4">
         <div className="gap-0.5" style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))` }}>
-          {grid.map((row, rowIndex) =>
-            row.map((cell, colIndex) => (
+          {grid.map((row) =>
+            row.map((cell) => (
               <div
                 key={cell.id}
                 className={`
@@ -396,7 +394,7 @@ const GameGrid: React.FC = () => {
         {/* Info Section - Top 30% */}
         <div className="h-[30%] p-4 border-b border-gray-300">
           <div className="bg-white rounded-lg p-3 shadow-md h-full overflow-auto">
-            <div className="text-lg font-semibold mb-3 text-gray-800">Game Inforfmation</div>
+            <div className="text-lg font-semibold mb-3 text-gray-800">Game Ingmation</div>
             <div className="space-y-4">
               {/* Stats */}
               <div className="space-y-1">
