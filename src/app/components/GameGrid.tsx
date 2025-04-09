@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 interface Resource {
   name: string;
@@ -263,75 +263,46 @@ const createYConnector = (input1: TierLayout, input2: TierLayout, output: TierLa
           L ${output.connectorEnd.x} ${output.connectorEnd.y}`;
 };
 
-// Add this helper function before the GameGrid component
-const getResourceStyle = (resource: Resource) => {
-  return `${resource.iconClasses} ${resource.color}`;
-};
-
 const GameGrid: React.FC = () => {
   const [grid, setGrid] = useState<Cell[][]>(() => createInitialGrid(false));
   const [turnCount, setTurnCount] = useState(0);
   const [resources, setResources] = useState<Record<string, number>>({});
+  const [territoryCount, setTerritoryCount] = useState(1);
 
   useEffect(() => {
     setGrid(createInitialGrid(true));
   }, []);
 
-  const territoryCount = grid.reduce((total, row) => 
-    total + row.reduce((rowTotal, cell) => rowTotal + (cell.owned ? 1 : 0), 0), 0
-  );
-
-  const mineResources = (currentGrid: Cell[][], currentResources: Record<string, number>) => {
-    const newGrid = currentGrid.map(row => [...row]);
-    const newResources = { ...currentResources };
-
-    // Mine new resources
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let col = 0; col < GRID_SIZE; col++) {
-        const cell = currentGrid[row][col];
-        if (cell.owned && cell.resource && cell.miningProgress < MAX_MINING) {
-          newResources[cell.resource.name] = (newResources[cell.resource.name] || 0) + 1;
-          newGrid[row][col] = {
-            ...cell,
-            miningProgress: cell.miningProgress + 1,
-          };
-        }
-      }
-    }
-
-    return { newGrid, newResources };
-  };
-
-  const handleMove = (key: string) => {
+  const handleMove = useCallback((key: string) => {
     const newGrid = [...grid.map(row => [...row])];
     let changed = false;
 
-    // First check if the move is valid
+    // Process movement based on key
     for (let row = 0; row < GRID_SIZE; row++) {
       for (let col = 0; col < GRID_SIZE; col++) {
         if (grid[row][col].owned) {
           switch (key) {
             case 'ArrowUp':
               if (row > 0 && !grid[row - 1][col].owned) {
-                newGrid[row - 1][col] = { ...newGrid[row - 1][col], owned: true, owner: 'player' };
+                newGrid[row - 1][col].owned = true;
                 changed = true;
               }
               break;
             case 'ArrowDown':
               if (row < GRID_SIZE - 1 && !grid[row + 1][col].owned) {
-                newGrid[row + 1][col] = { ...newGrid[row + 1][col], owned: true, owner: 'player' };
+                newGrid[row + 1][col].owned = true;
                 changed = true;
               }
               break;
             case 'ArrowLeft':
               if (col > 0 && !grid[row][col - 1].owned) {
-                newGrid[row][col - 1] = { ...newGrid[row][col - 1], owned: true, owner: 'player' };
+                newGrid[row][col - 1].owned = true;
                 changed = true;
               }
               break;
             case 'ArrowRight':
               if (col < GRID_SIZE - 1 && !grid[row][col + 1].owned) {
-                newGrid[row][col + 1] = { ...newGrid[row][col + 1], owned: true, owner: 'player' };
+                newGrid[row][col + 1].owned = true;
                 changed = true;
               }
               break;
@@ -341,18 +312,32 @@ const GameGrid: React.FC = () => {
     }
 
     if (changed) {
-      // First combine existing resources
-      const combinedResources = combineResources(resources);
-      
-      // Then mine new resources, passing in the combined resources
-      const { newGrid: minedGrid, newResources: finalResources } = mineResources(newGrid, combinedResources);
-      
-      // Update both states at once
-      setGrid(minedGrid);
-      setResources(finalResources);
+      setGrid(newGrid);
       setTurnCount(prev => prev + 1);
+      
+      // Update territory count
+      const newTerritoryCount = newGrid.reduce((count, row) => 
+        count + row.filter(cell => cell.owned).length, 0
+      );
+      setTerritoryCount(newTerritoryCount);
+
+      // Process mining for owned cells
+      const newResources = { ...resources };
+      newGrid.forEach(row => {
+        row.forEach(cell => {
+          if (cell.owned && cell.resource && cell.miningProgress < MAX_MINING) {
+            const resourceName = cell.resource.name;
+            newResources[resourceName] = (newResources[resourceName] || 0) + 1;
+            cell.miningProgress++;
+          }
+        });
+      });
+      setResources(newResources);
+
+      // Process resource combinations
+      combineResources(newResources);
     }
-  };
+  }, [grid, resources]);
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
