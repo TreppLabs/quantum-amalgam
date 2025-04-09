@@ -394,7 +394,7 @@ const GameGrid: React.FC = () => {
         {/* Info Section - Top 30% */}
         <div className="h-[30%] p-4 border-b border-gray-300">
           <div className="bg-white rounded-lg p-3 shadow-md h-full overflow-auto">
-            <div className="text-lg font-semibold mb-3 text-gray-800">Game Infogmation</div>
+            <div className="text-lg font-semibold mb-3 text-gray-800">Game Information</div>
             <div className="space-y-4">
               {/* Stats */}
               <div className="space-y-1">
