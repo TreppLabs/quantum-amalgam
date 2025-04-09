@@ -483,7 +483,7 @@ const GameGrid: React.FC = () => {
                     }}
                   >
                     <div
-                      className="text-[0.6rem] text-gray-600 text-center absolute transform -translate-x-1/2"
+                      className="text-[0.6rem] text-gray-600 text-center whitespace-nowrap absolute transform -translate-x-1/2"
                       style={{
                         width: '48px',
                         left: '50%',
