@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 
 interface Resource {
@@ -265,7 +266,7 @@ const GameGrid: React.FC = () => {
   const [grid, setGrid] = useState<Cell[][]>(() => createInitialGrid(false));
   const [turnCount, setTurnCount] = useState(0);
   const [resources, setResources] = useState<Record<string, number>>({});
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false); // Popup closed initially
 
 
   useEffect(() => {
@@ -357,23 +358,56 @@ const GameGrid: React.FC = () => {
   }, [handleKeyPress]);
 
   return (
-    <div className="flex h-screen w-full">
+    <div className="flex h-screen w-full relative">
+      {/* How to Play Popup */}
+      {showInstructions && (
+        <div
+          className="absolute bg-white p-2 rounded shadow-lg text-xs text-gray-600 leading-relaxed w-80 z-50 border border-gray-300"
+          style={{
+            top: '10%', // Adjust position as needed
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+        >
+          Use the arrow keys to expand your territory and claim new cells. Mine resources by owning cells containing them,
+          then combine basic resources to create advanced materials.
+          <br /><br />
+          Ultimate Goal: Create the legendary Quantum Amalgam by discovering and combining rare resources across your empire!
+        </div>
+      )}
+
       {/* Game Grid - Left 65% */}
       <div className="w-[65%] h-full flex items-center justify-center p-4 bg-cover bg-center"
            style={{ backgroundImage: 'url("/moonscape.jpg")' }}
       >
-        <div className="gap-0.5" style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))` }}>
+        <div
+          className="gap-0.5"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+            gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+            // Use the smaller dimension of the container for both width and height
+            width: `min(calc(100% - 80px), calc(100vh - 80px))`,
+            height: `min(calc(100% - 80px), calc(100vh - 80px))`,
+            justifyContent: 'center',
+            alignContent: 'center',
+          }}
+        >
           {grid.map((row) =>
             row.map((cell) => (
               <div
                 key={cell.id}
                 className={`
-                  w-8 h-8 border border-gray-300 flex items-center justify-center relative
+                  border border-gray-300 flex items-center justify-center relative
                   ${cell.owned 
                     ? 'bg-green-500 border-green-700' 
                     : 'bg-gray-200 border-gray-400'
                   }
                 `}
+                style={{
+                  width: '100%', // Let the grid container control the size
+                  height: '100%', // Let the grid container control the size
+                }}
               >
                 {cell.owned && (
                   <div className="w-4 h-4 bg-white rounded-full absolute" />
@@ -396,35 +430,37 @@ const GameGrid: React.FC = () => {
       {/* Info and Controls Panel - Right 35% */}
       <div className="w-[35%] h-full border-l border-gray-300 flex flex-col">
         {/* Info Section - Top 30% */}
-        <div className="h-[30%] p-4 border-b border-gray-300">
+        <div className="h-[30%] p-4 border-b border-gray-300 relative">
           <div className="bg-white rounded-lg p-3 shadow-md h-full overflow-auto">
+            {/* Instructions */}
+            <div className="relative mb-3">
+              <div
+                className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
+                onClick={() => setShowInstructions(!showInstructions)}
+              >
+                How to Play
+              </div>
+            </div>
+
             <div className="text-lg font-semibold mb-3 text-gray-800">Game Information</div>
             <div className="space-y-4">
               {/* Stats */}
               <div className="space-y-1">
                 <div className="text-sm text-gray-700">Turn: {turnCount}</div>
                 <div className="text-sm text-gray-700">Territory: {territoryCount} cells</div>
-              </div>
-             
-              
-              {/* Instructions */}
-              <div className="relative">
-                <div
-                  className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
-                  onClick={() => setShowInstructions(!showInstructions)}
-                >
-                  How to Play
+                <div className="flex items-center space-x-1">
+                  <Image
+                    src="/ingot.svg"
+                    alt="Quantum Amalgam"
+                    width={24}
+                    height={24}
+                    unoptimized
+                    className="w-6 h-6"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Quantum Amalgam: {resources["Quantum Amalgam"] || 0}
+                  </span>
                 </div>
-                {showInstructions && (
-                  <div
-                    className="absolute bg-white p-2 rounded shadow-lg text-xs text-gray-600 leading-relaxed mt-1 w-80"
-                  >
-                    Use the arrow keys to expand your territory and claim new cells. Mine resources by owning cells containing them,
-                    then combine basic resources to create advanced materials.
-                    <br/><br/>
-                    Ultimate Goal: Create the legendary Quantum Amalgam by discovering and combining rare resources across your empire!
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -433,10 +469,14 @@ const GameGrid: React.FC = () => {
         {/* Resource Tree - Bottom 70% */}
         <div className="flex-1 p-4 overflow-auto">
           <div className="bg-white rounded-lg p-4 shadow-md h-full">
-            <div className="text-lg font-semibold mb-2 text-gray-800">Resource Combinations</div>
+            <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
             <div className="relative w-full h-[calc(100%-2rem)]">
               {/* SVG Connections Layer */}
-              <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
+              <svg
+                className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                viewBox={`0 0 ${400} ${500}`} // Use a fixed viewBox for scaling
+                preserveAspectRatio="none" // Allow the aspect ratio to stretch
+              >
                 {/* Tier 1 to Tier 2 connections */}
                 {[
                   [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
@@ -447,7 +487,7 @@ const GameGrid: React.FC = () => {
                   <path
                     key={`t1-${index}`}
                     d={createYConnector(
-                      getResourcePosition(input1, 400, 500), // Reduced height from 600 to 500
+                      getResourcePosition(input1, 400, 500),
                       getResourcePosition(input2, 400, 500),
                       getResourcePosition(output, 400, 500)
                     )}
@@ -493,8 +533,8 @@ const GameGrid: React.FC = () => {
                     key={resource.name}
                     className="absolute transform -translate-x-1/2"
                     style={{
-                      left: `${pos.icon.x}px`,
-                      top: `${pos.icon.y}px`
+                      left: `${(pos.icon.x / 400) * 100}%`, // Scale position based on container width
+                      top: `${(pos.icon.y / 500) * 100}%` // Scale position based on container height
                     }}
                   >
                     <div
@@ -506,13 +546,28 @@ const GameGrid: React.FC = () => {
                     >
                       {resource.name}
                     </div>
-                    <div className={`w-6 h-6 ${resource.color} ${resource.iconClasses}`} />
+                    {resource.name === "Quantum Amalgam" ? (
+                      <Image
+                        src="/ingot.svg"
+                        alt="Quantum Amalgam"
+                        width={32}
+                        height={32}
+                        className="w-8 h-8"
+                      />
+                    ) : (
+                      <div
+                        className={`${resource.color} ${resource.iconClasses}`}
+                        style={{
+                          transform: `scale(${400 / 400}, ${500 / 500})`, // Scale icons proportionally
+                        }}
+                      />
+                    )}
                     <div
                       className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
                       style={{
                         width: '24px',
                         left: '50%',
-                        top: '24px' // Reduced from 28px
+                        top: '24px'
                       }}
                     >
                       {resources[resource.name] || 0}
@@ -528,4 +583,4 @@ const GameGrid: React.FC = () => {
   );
 }
 
-export default GameGrid; 
+export default GameGrid;
