@@ -267,7 +267,62 @@ const GameGrid: React.FC = () => {
   const [turnCount, setTurnCount] = useState(0);
   const [resources, setResources] = useState<Record<string, number>>({});
   const [showInstructions, setShowInstructions] = useState(false); // Popup closed initially
+  const [isMobile, setIsMobile] = useState(false); // Detect mobile devices
 
+  useEffect(() => {
+    // Detect if the user is on a mobile device
+    setIsMobile(window.innerWidth <= 768);
+  }, []);
+
+  const handleSwipe = (direction: string) => {
+    const event = { key: '' };
+    switch (direction) {
+      case 'up':
+        event.key = 'ArrowUp';
+        break;
+      case 'down':
+        event.key = 'ArrowDown';
+        break;
+      case 'left':
+        event.key = 'ArrowLeft';
+        break;
+      case 'right':
+        event.key = 'ArrowRight';
+        break;
+    }
+    handleKeyPress(event as KeyboardEvent);
+  };
+
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    const touch = e.touches[0];
+    (window as any).startX = touch.clientX;
+    (window as any).startY = touch.clientY;
+  }, []);
+
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - (window as any).startX;
+    const deltaY = touch.clientY - (window as any).startY;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Horizontal swipe
+      if (deltaX > 0) handleSwipe('right');
+      else handleSwipe('left');
+    } else {
+      // Vertical swipe
+      if (deltaY > 0) handleSwipe('down');
+      else handleSwipe('up');
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [handleTouchStart, handleTouchEnd]);
 
   useEffect(() => {
     setGrid(createInitialGrid(true));
@@ -358,94 +413,107 @@ const GameGrid: React.FC = () => {
   }, [handleKeyPress]);
 
   return (
-    <div className="flex h-screen w-full relative">
+    <div className={`flex ${isMobile ? 'flex-col' : 'h-screen'} w-full relative`}>
       {/* How to Play Popup */}
       {showInstructions && (
         <div
           className="absolute bg-white p-2 rounded shadow-lg text-xs text-gray-600 leading-relaxed w-80 z-50 border border-gray-300"
           style={{
-            top: '10%', // Adjust position as needed
+            top: isMobile ? '20%' : '10%',
             left: '50%',
             transform: 'translateX(-50%)',
           }}
         >
-          Use the arrow keys to expand your territory and claim new cells. Mine resources by owning cells containing them,
-          then combine basic resources to create advanced materials.
-          <br /><br />
-          Ultimate Goal: Create the legendary Quantum Amalgam by discovering and combining rare resources across your empire!
+          {isMobile ? (
+            <>
+              Swipe or tap the directional buttons to expand your territory. Mine resources by owning cells containing them,
+              then combine basic resources to create advanced materials.
+              <br /><br />
+              Ultimate Goal: Create the legendary Quantum Amalgam by discovering and combining rare resources across your empire!
+            </>
+          ) : (
+            <>
+              Use the arrow keys to expand your territory and claim new cells. Mine resources by owning cells containing them,
+              then combine basic resources to create advanced materials.
+              <br /><br />
+              Ultimate Goal: Create the legendary Quantum Amalgam by discovering and combining rare resources across your empire!
+            </>
+          )}
         </div>
       )}
 
-      {/* Game Grid - Left 65% */}
-      <div className="w-[65%] h-full flex items-center justify-center p-4 bg-cover bg-center"
-           style={{ backgroundImage: 'url("/moonscape.jpg")' }}
-      >
-        <div
-          className="gap-0.5"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
-            gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
-            // Use the smaller dimension of the container for both width and height
-            width: `min(calc(100% - 80px), calc(100vh - 80px))`,
-            height: `min(calc(100% - 80px), calc(100vh - 80px))`,
-            justifyContent: 'center',
-            alignContent: 'center',
-          }}
-        >
-          {grid.map((row) =>
-            row.map((cell) => (
-              <div
-                key={cell.id}
-                className={`
-                  border border-gray-300 flex items-center justify-center relative
-                  ${cell.owned 
-                    ? 'bg-green-500 border-green-700' 
-                    : 'bg-gray-200 border-gray-400'
-                  }
-                `}
-                style={{
-                  width: '100%', // Let the grid container control the size
-                  height: '100%', // Let the grid container control the size
-                }}
-              >
-                {cell.owned && (
-                  <div className="w-4 h-4 bg-white rounded-full absolute" />
-                )}
-                {cell.resource && (
-                  <div className={`
-                    ${cell.resource.iconClasses}
-                    ${cell.miningProgress >= MAX_MINING ? 'bg-gray-400' : cell.resource.color}
-                    ${cell.owned ? 'mix-blend-multiply' : ''}
-                    absolute
-                    ${cell.miningProgress >= MAX_MINING ? 'opacity-50' : ''}
-                  `} />
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Info and Controls Panel - Right 35% */}
-      <div className="w-[35%] h-full border-l border-gray-300 flex flex-col">
-        {/* Info Section - Top 30% */}
-        <div className="h-[30%] p-4 border-b border-gray-300 relative">
-          <div className="bg-white rounded-lg p-3 shadow-md h-full overflow-auto">
-            {/* Instructions */}
-            <div className="relative mb-3">
-              <div
-                className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
-                onClick={() => setShowInstructions(!showInstructions)}
-              >
-                How to Play
-              </div>
+      {/* Mobile Layout */}
+      {isMobile ? (
+        <>
+          {/* Grid Section */}
+          <div
+            className="flex items-center justify-center"
+            style={{
+              padding: '10px',
+              width: '100%',
+              height: 'calc(100vw - 20px)', // Square container
+            }}
+          >
+            <div
+              className="gap-0.5"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+                gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+                width: '100%',
+                height: '100%',
+                justifyContent: 'center',
+                alignContent: 'center',
+              }}
+            >
+              {grid.map((row) =>
+                row.map((cell) => (
+                  <div
+                    key={cell.id}
+                    className={`
+                      border border-gray-300 flex items-center justify-center relative
+                      ${cell.owned 
+                        ? 'bg-green-500 border-green-700' 
+                        : 'bg-gray-200 border-gray-400'
+                      }
+                    `}
+                    style={{
+                      width: '100%', // Let the grid container control the size
+                      height: '100%', // Let the grid container control the size
+                    }}
+                  >
+                    {cell.owned && (
+                      <div className="w-4 h-4 bg-white rounded-full absolute" />
+                    )}
+                    {cell.resource && (
+                      <div className={`
+                        ${cell.resource.iconClasses}
+                        ${cell.miningProgress >= MAX_MINING ? 'bg-gray-400' : cell.resource.color}
+                        ${cell.owned ? 'mix-blend-multiply' : ''}
+                        absolute
+                        ${cell.miningProgress >= MAX_MINING ? 'opacity-50' : ''}
+                      `} />
+                    )}
+                  </div>
+                ))
+              )}
             </div>
+          </div>
 
-            <div className="text-lg font-semibold mb-3 text-gray-800">Game Information</div>
-            <div className="space-y-4">
-              {/* Stats */}
-              <div className="space-y-1">
+          {/* Info and Manufacturing Section */}
+          <div className="flex flex-col w-full p-2 space-y-4" style={{ flexGrow: 1, height: 'calc(100vh - calc(100vw - 20px) - 20px)' }}>
+            {/* Game Info */}
+            <div className="flex-none bg-white rounded-lg p-3 shadow-md">
+              <div className="relative mb-3">
+                <div
+                  className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
+                  onClick={() => setShowInstructions(!showInstructions)}
+                >
+                  How to Play
+                </div>
+              </div>
+              <div className="text-lg font-semibold mb-3 text-gray-800">Game Information</div>
+              <div className="space-y-4">
                 <div className="text-sm text-gray-700">Turn: {turnCount}</div>
                 <div className="text-sm text-gray-700">Territory: {territoryCount} cells</div>
                 <div className="flex items-center space-x-1">
@@ -463,122 +531,314 @@ const GameGrid: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Resource Tree - Bottom 70% */}
-        <div className="flex-1 p-4 overflow-auto">
-          <div className="bg-white rounded-lg p-4 shadow-md h-full">
-            <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
-            <div className="relative w-full h-[calc(100%-2rem)]">
-              {/* SVG Connections Layer */}
-              <svg
-                className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                viewBox={`0 0 ${400} ${500}`} // Use a fixed viewBox for scaling
-                preserveAspectRatio="none" // Allow the aspect ratio to stretch
-              >
-                {/* Tier 1 to Tier 2 connections */}
-                {[
-                  [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
-                  [BASIC_RESOURCES[2], BASIC_RESOURCES[3], MATERIALS[1]],
-                  [BASIC_RESOURCES[4], BASIC_RESOURCES[5], MATERIALS[2]],
-                  [BASIC_RESOURCES[6], BASIC_RESOURCES[7], MATERIALS[3]]
-                ].map(([input1, input2, output], index) => (
-                  <path
-                    key={`t1-${index}`}
-                    d={createYConnector(
-                      getResourcePosition(input1, 400, 500),
-                      getResourcePosition(input2, 400, 500),
-                      getResourcePosition(output, 400, 500)
-                    )}
-                    className="stroke-gray-400 fill-none"
-                    strokeWidth="1.5"
-                  />
-                ))}
 
-                {/* Tier 2 to Tier 3 connections */}
-                {[
-                  [MATERIALS[0], MATERIALS[1], COMPOUNDS[0]],
-                  [MATERIALS[2], MATERIALS[3], COMPOUNDS[1]]
-                ].map(([input1, input2, output], index) => (
-                  <path
-                    key={`t2-${index}`}
-                    d={createYConnector(
-                      getResourcePosition(input1, 400, 500),
-                      getResourcePosition(input2, 400, 500),
-                      getResourcePosition(output, 400, 500)
-                    )}
-                    className="stroke-gray-400 fill-none"
-                    strokeWidth="1.5"
-                  />
-                ))}
+            {/* Manufacturing Section */}
+            <div className="flex-1 bg-white rounded-lg p-3 shadow-md flex flex-col">
+              <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
+              <div className="relative w-full flex-grow">
+                {/* SVG Connections Layer */}
+                <svg
+                  className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                  viewBox={`0 0 ${400} ${500}`}
+                  preserveAspectRatio="none"
+                >
+                  {/* ...existing code for connections... */}
+                </svg>
 
-                {/* Tier 3 to Tier 4 connection */}
-                <path
-                  d={createYConnector(
-                    getResourcePosition(COMPOUNDS[0], 400, 500),
-                    getResourcePosition(COMPOUNDS[1], 400, 500),
-                    getResourcePosition(SUPER_ALLOY, 400, 500)
-                  )}
-                  className="stroke-gray-400 fill-none"
-                  strokeWidth="1.5"
-                />
-              </svg>
-
-              {/* Resource Icons Layer */}
-              {[...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY].map((resource) => {
-                const pos = getResourcePosition(resource, 400, 500);
-                return (
-                  <div
-                    key={resource.name}
-                    className="absolute transform -translate-x-1/2"
-                    style={{
-                      left: `${(pos.icon.x / 400) * 100}%`, // Scale position based on container width
-                      top: `${(pos.icon.y / 500) * 100}%` // Scale position based on container height
-                    }}
-                  >
+                {/* Resource Icons Layer */}
+                {[...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY].map((resource) => {
+                  const pos = getResourcePosition(resource, 400, 500);
+                  return (
                     <div
-                      className="text-[0.6rem] text-gray-600 text-center whitespace-nowrap absolute transform -translate-x-1/2"
+                      key={resource.name}
+                      className="absolute transform -translate-x-1/2"
                       style={{
-                        left: '50%',
-                        top: '-16px'
+                        left: `${(pos.icon.x / 400) * 100}%`,
+                        top: `${(pos.icon.y / 500) * 100}%`,
                       }}
                     >
-                      {resource.name}
+                      <div
+                        className="text-[0.6rem] text-gray-600 text-center whitespace-nowrap absolute transform -translate-x-1/2"
+                        style={{
+                          left: '50%',
+                          top: '-16px',
+                        }}
+                      >
+                        {resource.name}
+                      </div>
+                      {resource.name === "Quantum Amalgam" ? (
+                        <Image
+                          src="/ingot.svg"
+                          alt="Quantum Amalgam"
+                          width={32}
+                          height={32}
+                          className="w-8 h-8"
+                        />
+                      ) : (
+                        <div
+                          className={`${resource.color} ${resource.iconClasses}`}
+                          style={{
+                            transform: `scale(${400 / 400}, ${500 / 500})`,
+                          }}
+                        />
+                      )}
+                      <div
+                        className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
+                        style={{
+                          width: '24px',
+                          left: '50%',
+                          top: '24px',
+                        }}
+                      >
+                        {resources[resource.name] || 0}
+                      </div>
                     </div>
-                    {resource.name === "Quantum Amalgam" ? (
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </>
+      ) : (
+        // Desktop Layout
+        <div className="flex h-screen w-full">
+          {/* Game Grid - Left 65% */}
+          <div className="w-[65%] h-full flex items-center justify-center p-4 bg-cover bg-center"
+               style={{ backgroundImage: 'url("/moonscape.jpg")' }}
+          >
+            <div
+              className="gap-0.5"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+                gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+                // Use the smaller dimension of the container for both width and height
+                width: `min(calc(100% - 80px), calc(100vh - 80px))`,
+                height: `min(calc(100% - 80px), calc(100vh - 80px))`,
+                justifyContent: 'center',
+                alignContent: 'center',
+              }}
+            >
+              {grid.map((row) =>
+                row.map((cell) => (
+                  <div
+                    key={cell.id}
+                    className={`
+                      border border-gray-300 flex items-center justify-center relative
+                      ${cell.owned 
+                        ? 'bg-green-500 border-green-700' 
+                        : 'bg-gray-200 border-gray-400'
+                      }
+                    `}
+                    style={{
+                      width: '100%', // Let the grid container control the size
+                      height: '100%', // Let the grid container control the size
+                    }}
+                  >
+                    {cell.owned && (
+                      <div className="w-4 h-4 bg-white rounded-full absolute" />
+                    )}
+                    {cell.resource && (
+                      <div className={`
+                        ${cell.resource.iconClasses}
+                        ${cell.miningProgress >= MAX_MINING ? 'bg-gray-400' : cell.resource.color}
+                        ${cell.owned ? 'mix-blend-multiply' : ''}
+                        absolute
+                        ${cell.miningProgress >= MAX_MINING ? 'opacity-50' : ''}
+                      `} />
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Info and Controls Panel - Right 35% */}
+          <div className="w-[35%] h-full border-l border-gray-300 flex flex-col">
+            {/* Info Section - Top 30% */}
+            <div className="h-[30%] p-4 border-b border-gray-300 relative">
+              <div className="bg-white rounded-lg p-3 shadow-md h-full overflow-auto">
+                {/* Instructions */}
+                <div className="relative mb-3">
+                  <div
+                    className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
+                    onClick={() => setShowInstructions(!showInstructions)}
+                  >
+                    How to Play
+                  </div>
+                </div>
+
+                <div className="text-lg font-semibold mb-3 text-gray-800">Game Information</div>
+                <div className="space-y-4">
+                  {/* Stats */}
+                  <div className="space-y-1">
+                    <div className="text-sm text-gray-700">Turn: {turnCount}</div>
+                    <div className="text-sm text-gray-700">Territory: {territoryCount} cells</div>
+                    <div className="flex items-center space-x-1">
                       <Image
                         src="/ingot.svg"
                         alt="Quantum Amalgam"
-                        width={32}
-                        height={32}
-                        className="w-8 h-8"
+                        width={24}
+                        height={24}
+                        unoptimized
+                        className="w-6 h-6"
                       />
-                    ) : (
-                      <div
-                        className={`${resource.color} ${resource.iconClasses}`}
-                        style={{
-                          transform: `scale(${400 / 400}, ${500 / 500})`, // Scale icons proportionally
-                        }}
-                      />
-                    )}
-                    <div
-                      className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
-                      style={{
-                        width: '24px',
-                        left: '50%',
-                        top: '24px'
-                      }}
-                    >
-                      {resources[resource.name] || 0}
+                      <span className="text-sm text-gray-700">
+                        Quantum Amalgam: {resources["Quantum Amalgam"] || 0}
+                      </span>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              </div>
+            </div>
+            
+            {/* Touch Controls for Mobile */}
+            {isMobile && (
+              <div className="flex justify-center items-center space-x-4 p-4">
+                <button
+                  className="bg-gray-200 p-4 rounded-full shadow-md"
+                  onClick={() => handleSwipe('up')}
+                >
+                  ↑
+                </button>
+                <div className="flex flex-col space-y-4">
+                  <button
+                    className="bg-gray-200 p-4 rounded-full shadow-md"
+                    onClick={() => handleSwipe('left')}
+                  >
+                    ←
+                  </button>
+                  <button
+                    className="bg-gray-200 p-4 rounded-full shadow-md"
+                    onClick={() => handleSwipe('right')}
+                  >
+                    →
+                  </button>
+                </div>
+                <button
+                  className="bg-gray-200 p-4 rounded-full shadow-md"
+                  onClick={() => handleSwipe('down')}
+                >
+                  ↓
+                </button>
+              </div>
+            )}
+
+            {/* Resource Tree - Bottom 70% */}
+            <div className="flex-1 p-4 overflow-auto">
+              <div className="bg-white rounded-lg p-4 shadow-md h-full">
+                <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
+                <div className="relative w-full h-[calc(100%-2rem)]">
+                  {/* SVG Connections Layer */}
+                  <svg
+                    className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                    viewBox={`0 0 ${400} ${500}`} // Use a fixed viewBox for scaling
+                    preserveAspectRatio="none" // Allow the aspect ratio to stretch
+                  >
+                    {/* Tier 1 to Tier 2 connections */}
+                    {[
+                      [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
+                      [BASIC_RESOURCES[2], BASIC_RESOURCES[3], MATERIALS[1]],
+                      [BASIC_RESOURCES[4], BASIC_RESOURCES[5], MATERIALS[2]],
+                      [BASIC_RESOURCES[6], BASIC_RESOURCES[7], MATERIALS[3]]
+                    ].map(([input1, input2, output], index) => (
+                      <path
+                        key={`t1-${index}`}
+                        d={createYConnector(
+                          getResourcePosition(input1, 400, 500),
+                          getResourcePosition(input2, 400, 500),
+                          getResourcePosition(output, 400, 500)
+                        )}
+                        className="stroke-gray-400 fill-none"
+                        strokeWidth="1.5"
+                      />
+                    ))}
+
+                    {/* Tier 2 to Tier 3 connections */}
+                    {[
+                      [MATERIALS[0], MATERIALS[1], COMPOUNDS[0]],
+                      [MATERIALS[2], MATERIALS[3], COMPOUNDS[1]]
+                    ].map(([input1, input2, output], index) => (
+                      <path
+                        key={`t2-${index}`}
+                        d={createYConnector(
+                          getResourcePosition(input1, 400, 500),
+                          getResourcePosition(input2, 400, 500),
+                          getResourcePosition(output, 400, 500)
+                        )}
+                        className="stroke-gray-400 fill-none"
+                        strokeWidth="1.5"
+                      />
+                    ))}
+
+                    {/* Tier 3 to Tier 4 connection */}
+                    <path
+                      d={createYConnector(
+                        getResourcePosition(COMPOUNDS[0], 400, 500),
+                        getResourcePosition(COMPOUNDS[1], 400, 500),
+                        getResourcePosition(SUPER_ALLOY, 400, 500)
+                      )}
+                      className="stroke-gray-400 fill-none"
+                      strokeWidth="1.5"
+                    />
+                  </svg>
+
+                  {/* Resource Icons Layer */}
+                  {[...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY].map((resource) => {
+                    const pos = getResourcePosition(resource, 400, 500);
+                    return (
+                      <div
+                        key={resource.name}
+                        className="absolute transform -translate-x-1/2"
+                        style={{
+                          left: `${(pos.icon.x / 400) * 100}%`, // Scale position based on container width
+                          top: `${(pos.icon.y / 500) * 100}%` // Scale position based on container height
+                        }}
+                      >
+                        <div
+                          className="text-[0.6rem] text-gray-600 text-center whitespace-nowrap absolute transform -translate-x-1/2"
+                          style={{
+                            left: '50%',
+                            top: '-16px'
+                          }}
+                        >
+                          {resource.name}
+                        </div>
+                        {resource.name === "Quantum Amalgam" ? (
+                          <Image
+                            src="/ingot.svg"
+                            alt="Quantum Amalgam"
+                            width={32}
+                            height={32}
+                            className="w-8 h-8"
+                          />
+                        ) : (
+                          <div
+                            className={`${resource.color} ${resource.iconClasses}`}
+                            style={{
+                              transform: `scale(${400 / 400}, ${500 / 500})`, // Scale icons proportionally
+                            }}
+                          />
+                        )}
+                        <div
+                          className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
+                          style={{
+                            width: '24px',
+                            left: '50%',
+                            top: '24px'
+                          }}
+                        >
+                          {resources[resource.name] || 0}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
