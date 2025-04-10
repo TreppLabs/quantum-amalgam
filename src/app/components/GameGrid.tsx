@@ -252,14 +252,15 @@ const getResourcePosition = (resource: Resource, containerWidth: number, contain
 };
 
 const createYConnector = (input1: TierLayout, input2: TierLayout, output: TierLayout): string => {
-  const midY = (input1.connectorStart.y + output.connectorEnd.y) / 2;
-  const controlY = midY + ((output.connectorEnd.y - midY) / 2); // Adjust the vertical line to be shorter
-  return `M ${input1.connectorStart.x} ${input1.connectorStart.y} 
-          L ${input1.connectorStart.x} ${controlY} 
-          L ${output.connectorEnd.x} ${output.connectorEnd.y} 
-          M ${input2.connectorStart.x} ${input2.connectorStart.y} 
-          L ${input2.connectorStart.x} ${controlY} 
-          L ${output.connectorEnd.x} ${output.connectorEnd.y}`;
+  const midY = (input1.icon.y + output.icon.y) / 2; // Use the same Y-coordinates as the icons
+  const controlY = midY + ((output.icon.y - midY) / 2); // Adjust the vertical line to be shorter
+
+  return `M ${input1.icon.x} ${input1.icon.y} 
+          L ${input1.icon.x} ${controlY} 
+          L ${output.icon.x} ${output.icon.y} 
+          M ${input2.icon.x} ${input2.icon.y} 
+          L ${input2.icon.x} ${controlY} 
+          L ${output.icon.x} ${output.icon.y}`;
 };
 
 const GameGrid: React.FC = () => {
@@ -295,14 +296,14 @@ const GameGrid: React.FC = () => {
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     const touch = e.touches[0];
-    (window as any).startX = touch.clientX;
-    (window as any).startY = touch.clientY;
+    (window as unknown as { startX: number; startY: number }).startX = touch.clientX;
+    (window as unknown as { startX: number; startY: number }).startY = touch.clientY;
   }, []);
 
   const handleTouchEnd = useCallback((e: TouchEvent) => {
     const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - (window as any).startX;
-    const deltaY = touch.clientY - (window as any).startY;
+    const deltaX = touch.clientX - (window as unknown as { startX: number; startY: number }).startX;
+    const deltaY = touch.clientY - (window as unknown as { startX: number; startY: number }).startY;
 
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
       // Horizontal swipe
@@ -313,7 +314,7 @@ const GameGrid: React.FC = () => {
       if (deltaY > 0) handleSwipe('down');
       else handleSwipe('up');
     }
-  }, []);
+  }, [handleSwipe]);
 
   useEffect(() => {
     window.addEventListener('touchstart', handleTouchStart);
@@ -539,10 +540,55 @@ const GameGrid: React.FC = () => {
                 {/* SVG Connections Layer */}
                 <svg
                   className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                  viewBox={`0 0 ${400} ${500}`}
-                  preserveAspectRatio="none"
+                  viewBox={`0 0 ${400} ${500}`} // Use a fixed viewBox for consistent scaling
+                  preserveAspectRatio="xMidYMid meet" // Maintain aspect ratio and center the content
                 >
-                  {/* ...existing code for connections... */}
+                  {/* Tier 1 to Tier 2 connections */}
+                  {[
+                    [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
+                    [BASIC_RESOURCES[2], BASIC_RESOURCES[3], MATERIALS[1]],
+                    [BASIC_RESOURCES[4], BASIC_RESOURCES[5], MATERIALS[2]],
+                    [BASIC_RESOURCES[6], BASIC_RESOURCES[7], MATERIALS[3]]
+                  ].map(([input1, input2, output], index) => (
+                    <path
+                      key={`t1-${index}`}
+                      d={createYConnector(
+                        getResourcePosition(input1, 400, 500),
+                        getResourcePosition(input2, 400, 500),
+                        getResourcePosition(output, 400, 500)
+                      )}
+                      className="stroke-gray-400 fill-none"
+                      strokeWidth="1.5"
+                    />
+                  ))}
+
+                  {/* Tier 2 to Tier 3 connections */}
+                  {[
+                    [MATERIALS[0], MATERIALS[1], COMPOUNDS[0]],
+                    [MATERIALS[2], MATERIALS[3], COMPOUNDS[1]]
+                  ].map(([input1, input2, output], index) => (
+                    <path
+                      key={`t2-${index}`}
+                      d={createYConnector(
+                        getResourcePosition(input1, 400, 500),
+                        getResourcePosition(input2, 400, 500),
+                        getResourcePosition(output, 400, 500)
+                      )}
+                      className="stroke-gray-400 fill-none"
+                      strokeWidth="1.5"
+                    />
+                  ))}
+
+                  {/* Tier 3 to Tier 4 connection */}
+                  <path
+                    d={createYConnector(
+                      getResourcePosition(COMPOUNDS[0], 400, 500),
+                      getResourcePosition(COMPOUNDS[1], 400, 500),
+                      getResourcePosition(SUPER_ALLOY, 400, 500)
+                    )}
+                    className="stroke-gray-400 fill-none"
+                    strokeWidth="1.5"
+                  />
                 </svg>
 
                 {/* Resource Icons Layer */}
@@ -553,15 +599,15 @@ const GameGrid: React.FC = () => {
                       key={resource.name}
                       className="absolute transform -translate-x-1/2"
                       style={{
-                        left: `${(pos.icon.x / 400) * 100}%`,
-                        top: `${(pos.icon.y / 500) * 100}%`,
+                        left: `${(pos.icon.x / 400) * 100}%`, // Scale position based on container width
+                        top: `${(pos.icon.y / 500) * 100}%` // Scale position based on container height
                       }}
                     >
                       <div
                         className="text-[0.6rem] text-gray-600 text-center whitespace-nowrap absolute transform -translate-x-1/2"
                         style={{
                           left: '50%',
-                          top: '-16px',
+                          top: '-16px'
                         }}
                       >
                         {resource.name}
@@ -578,7 +624,7 @@ const GameGrid: React.FC = () => {
                         <div
                           className={`${resource.color} ${resource.iconClasses}`}
                           style={{
-                            transform: `scale(${400 / 400}, ${500 / 500})`,
+                            transform: `scale(${400 / 400}, ${500 / 500})`, // Scale icons proportionally
                           }}
                         />
                       )}
@@ -587,7 +633,7 @@ const GameGrid: React.FC = () => {
                         style={{
                           width: '24px',
                           left: '50%',
-                          top: '24px',
+                          top: '24px'
                         }}
                       >
                         {resources[resource.name] || 0}
