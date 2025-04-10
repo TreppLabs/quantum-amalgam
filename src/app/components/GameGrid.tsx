@@ -266,7 +266,7 @@ const GameGrid: React.FC = () => {
   const [grid, setGrid] = useState<Cell[][]>(() => createInitialGrid(false));
   const [turnCount, setTurnCount] = useState(0);
   const [resources, setResources] = useState<Record<string, number>>({});
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false); // Popup closed initially
 
 
   useEffect(() => {
@@ -358,7 +358,24 @@ const GameGrid: React.FC = () => {
   }, [handleKeyPress]);
 
   return (
-    <div className="flex h-screen w-full">
+    <div className="flex h-screen w-full relative">
+      {/* How to Play Popup */}
+      {showInstructions && (
+        <div
+          className="absolute bg-white p-2 rounded shadow-lg text-xs text-gray-600 leading-relaxed w-80 z-50 border border-gray-300"
+          style={{
+            top: '10%', // Adjust position as needed
+            left: '50%',
+            transform: 'translateX(-50%)',
+          }}
+        >
+          Use the arrow keys to expand your territory and claim new cells. Mine resources by owning cells containing them,
+          then combine basic resources to create advanced materials.
+          <br /><br />
+          Ultimate Goal: Create the legendary Quantum Amalgam by discovering and combining rare resources across your empire!
+        </div>
+      )}
+
       {/* Game Grid - Left 65% */}
       <div className="w-[65%] h-full flex items-center justify-center p-4 bg-cover bg-center"
            style={{ backgroundImage: 'url("/moonscape.jpg")' }}
@@ -413,8 +430,18 @@ const GameGrid: React.FC = () => {
       {/* Info and Controls Panel - Right 35% */}
       <div className="w-[35%] h-full border-l border-gray-300 flex flex-col">
         {/* Info Section - Top 30% */}
-        <div className="h-[30%] p-4 border-b border-gray-300">
+        <div className="h-[30%] p-4 border-b border-gray-300 relative">
           <div className="bg-white rounded-lg p-3 shadow-md h-full overflow-auto">
+            {/* Instructions */}
+            <div className="relative mb-3">
+              <div
+                className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
+                onClick={() => setShowInstructions(!showInstructions)}
+              >
+                How to Play
+              </div>
+            </div>
+
             <div className="text-lg font-semibold mb-3 text-gray-800">Game Information</div>
             <div className="space-y-4">
               {/* Stats */}
@@ -434,27 +461,6 @@ const GameGrid: React.FC = () => {
                     Quantum Amalgam: {resources["Quantum Amalgam"] || 0}
                   </span>
                 </div>
-              </div>
-
-              
-              {/* Instructions */}
-              <div className="relative">
-                <div
-                  className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
-                  onClick={() => setShowInstructions(!showInstructions)}
-                >
-                  How to Play
-                </div>
-                {showInstructions && (
-                  <div
-                    className="absolute bg-white p-2 rounded shadow-lg text-xs text-gray-600 leading-relaxed mt-1 w-80"
-                  >
-                    Use the arrow keys to expand your territory and claim new cells. Mine resources by owning cells containing them,
-                    then combine basic resources to create advanced materials.
-                    <br/><br/>
-                    Ultimate Goal: Create the legendary Quantum Amalgam by discovering and combining rare resources across your empire!
-                  </div>
-                )}
               </div>
             </div>
           </div>
