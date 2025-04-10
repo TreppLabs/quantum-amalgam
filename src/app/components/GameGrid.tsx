@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 
 interface Resource {
@@ -404,8 +405,21 @@ const GameGrid: React.FC = () => {
               <div className="space-y-1">
                 <div className="text-sm text-gray-700">Turn: {turnCount}</div>
                 <div className="text-sm text-gray-700">Territory: {territoryCount} cells</div>
+                <div className="flex items-center space-x-1">
+                  <Image
+                    src="/ingot.svg"
+                    alt="Quantum Amalgam"
+                    width={24}
+                    height={24}
+                    unoptimized
+                    className="w-6 h-6"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Quantum Amalgam: {resources["Quantum Amalgam"] || 0}
+                  </span>
+                </div>
               </div>
-             
+
               
               {/* Instructions */}
               <div className="relative">
@@ -433,7 +447,7 @@ const GameGrid: React.FC = () => {
         {/* Resource Tree - Bottom 70% */}
         <div className="flex-1 p-4 overflow-auto">
           <div className="bg-white rounded-lg p-4 shadow-md h-full">
-            <div className="text-lg font-semibold mb-2 text-gray-800">Resource Combinations</div>
+            <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
             <div className="relative w-full h-[calc(100%-2rem)]">
               {/* SVG Connections Layer */}
               <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
@@ -506,13 +520,23 @@ const GameGrid: React.FC = () => {
                     >
                       {resource.name}
                     </div>
-                    <div className={`w-6 h-6 ${resource.color} ${resource.iconClasses}`} />
+                    {resource.name === "Quantum Amalgam" ? (
+                      <Image
+                        src="/ingot.svg"
+                        alt="Quantum Amalgam"
+                        width={32}
+                        height={32}
+                        className="w-8 h-8"
+                      />
+                    ) : (
+                      <div className={`w-6 h-6 ${resource.color} ${resource.iconClasses}`} />
+                    )} 
                     <div
                       className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
                       style={{
                         width: '24px',
                         left: '50%',
-                        top: '24px' // Reduced from 28px
+                        top: '24px'
                       }}
                     >
                       {resources[resource.name] || 0}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="QuantumGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#7e22ce"/>
+      <stop offset="50%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="16" width="48" height="32" rx="8" fill="url(#QuantumGradient)" stroke="#000" stroke-width="2"/>
+  <rect x="16" y="24" width="32" height="16" rx="4" fill="white" opacity="0.2"/>
+</svg>
