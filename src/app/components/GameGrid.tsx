@@ -3,6 +3,13 @@
 import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 
+declare global {
+  interface Window {
+    startX?: number;
+    startY?: number;
+  }
+}
+
 interface Resource {
   name: string;
   color: string;
@@ -295,14 +302,14 @@ const GameGrid: React.FC = () => {
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     const touch = e.touches[0];
-    (window as any).startX = touch.clientX;
-    (window as any).startY = touch.clientY;
-  }, []);
+    window.startX = touch.clientX;
+    window.startY = touch.clientY;
+  }, []); // no "any" now
 
   const handleTouchEnd = useCallback((e: TouchEvent) => {
     const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - (window as any).startX;
-    const deltaY = touch.clientY - (window as any).startY;
+    const deltaX = touch.clientX - (window.startX ?? 0);
+    const deltaY = touch.clientY - (window.startY ?? 0);
 
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
       // Horizontal swipe
@@ -313,7 +320,7 @@ const GameGrid: React.FC = () => {
       if (deltaY > 0) handleSwipe('down');
       else handleSwipe('up');
     }
-  }, []);
+  }, [handleSwipe]); // added dependency
 
   useEffect(() => {
     window.addEventListener('touchstart', handleTouchStart);
