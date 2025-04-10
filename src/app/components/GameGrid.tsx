@@ -363,18 +363,34 @@ const GameGrid: React.FC = () => {
       <div className="w-[65%] h-full flex items-center justify-center p-4 bg-cover bg-center"
            style={{ backgroundImage: 'url("/moonscape.jpg")' }}
       >
-        <div className="gap-0.5" style={{ display: 'grid', gridTemplateColumns: `repeat(${GRID_SIZE}, minmax(0, 1fr))` }}>
+        <div
+          className="gap-0.5"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+            gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+            // Use the smaller dimension of the container for both width and height
+            width: `min(calc(100% - 80px), calc(100vh - 80px))`,
+            height: `min(calc(100% - 80px), calc(100vh - 80px))`,
+            justifyContent: 'center',
+            alignContent: 'center',
+          }}
+        >
           {grid.map((row) =>
             row.map((cell) => (
               <div
                 key={cell.id}
                 className={`
-                  w-8 h-8 border border-gray-300 flex items-center justify-center relative
+                  border border-gray-300 flex items-center justify-center relative
                   ${cell.owned 
                     ? 'bg-green-500 border-green-700' 
                     : 'bg-gray-200 border-gray-400'
                   }
                 `}
+                style={{
+                  width: '100%', // Let the grid container control the size
+                  height: '100%', // Let the grid container control the size
+                }}
               >
                 {cell.owned && (
                   <div className="w-4 h-4 bg-white rounded-full absolute" />
@@ -450,7 +466,11 @@ const GameGrid: React.FC = () => {
             <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
             <div className="relative w-full h-[calc(100%-2rem)]">
               {/* SVG Connections Layer */}
-              <svg className="absolute top-0 left-0 w-full h-full pointer-events-none">
+              <svg
+                className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                viewBox={`0 0 ${400} ${500}`} // Use a fixed viewBox for scaling
+                preserveAspectRatio="none" // Allow the aspect ratio to stretch
+              >
                 {/* Tier 1 to Tier 2 connections */}
                 {[
                   [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
@@ -461,7 +481,7 @@ const GameGrid: React.FC = () => {
                   <path
                     key={`t1-${index}`}
                     d={createYConnector(
-                      getResourcePosition(input1, 400, 500), // Reduced height from 600 to 500
+                      getResourcePosition(input1, 400, 500),
                       getResourcePosition(input2, 400, 500),
                       getResourcePosition(output, 400, 500)
                     )}
@@ -507,8 +527,8 @@ const GameGrid: React.FC = () => {
                     key={resource.name}
                     className="absolute transform -translate-x-1/2"
                     style={{
-                      left: `${pos.icon.x}px`,
-                      top: `${pos.icon.y}px`
+                      left: `${(pos.icon.x / 400) * 100}%`, // Scale position based on container width
+                      top: `${(pos.icon.y / 500) * 100}%` // Scale position based on container height
                     }}
                   >
                     <div
@@ -529,8 +549,13 @@ const GameGrid: React.FC = () => {
                         className="w-8 h-8"
                       />
                     ) : (
-                      <div className={`w-6 h-6 ${resource.color} ${resource.iconClasses}`} />
-                    )} 
+                      <div
+                        className={`${resource.color} ${resource.iconClasses}`}
+                        style={{
+                          transform: `scale(${400 / 400}, ${500 / 500})`, // Scale icons proportionally
+                        }}
+                      />
+                    )}
                     <div
                       className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
                       style={{
@@ -552,4 +577,4 @@ const GameGrid: React.FC = () => {
   );
 }
 
-export default GameGrid; 
+export default GameGrid;
