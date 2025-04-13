@@ -259,14 +259,24 @@ const getResourcePosition = (resource: Resource, containerWidth: number, contain
 };
 
 const createYConnector = (input1: TierLayout, input2: TierLayout, output: TierLayout): string => {
-  const midY = (input1.connectorStart.y + output.connectorEnd.y) / 2;
-  const controlY = midY + ((output.connectorEnd.y - midY) / 2); // Adjust the vertical line to be shorter
-  return `M ${input1.connectorStart.x} ${input1.connectorStart.y} 
+  // Adjustment constants (tweak as desired)
+  const topAdjustment = 5;      // lower the top point (add to input start y)
+  const bendAdjustment = -5;    // raise the bend point (subtract from control y)
+  const outputAdjustment = -5;  // raise the output junction (subtract from output y)
+
+  const startY1 = input1.connectorStart.y + topAdjustment;
+  const startY2 = input2.connectorStart.y + topAdjustment;
+  const adjustedOutputY = output.connectorEnd.y + outputAdjustment;
+  const midY = (startY1 + adjustedOutputY) / 2;
+  const verticalFactor = 0.3;
+  let controlY = midY + (adjustedOutputY - midY) * verticalFactor;
+  controlY += bendAdjustment;
+  return `M ${input1.connectorStart.x} ${startY1} 
           L ${input1.connectorStart.x} ${controlY} 
-          L ${output.connectorEnd.x} ${output.connectorEnd.y} 
-          M ${input2.connectorStart.x} ${input2.connectorStart.y} 
+          L ${output.connectorEnd.x} ${adjustedOutputY} 
+          M ${input2.connectorStart.x} ${startY2} 
           L ${input2.connectorStart.x} ${controlY} 
-          L ${output.connectorEnd.x} ${output.connectorEnd.y}`;
+          L ${output.connectorEnd.x} ${adjustedOutputY}`;
 };
 
 const GameGrid: React.FC = () => {
@@ -275,11 +285,27 @@ const GameGrid: React.FC = () => {
   const [resources, setResources] = useState<Record<string, number>>({});
   const [showInstructions, setShowInstructions] = useState(false); // Popup closed initially
   const [isMobile, setIsMobile] = useState(false); // Detect mobile devices
+  const [gridSize, setGridSize] = useState(0);
 
   useEffect(() => {
     // Detect if the user is on a mobile device
     setIsMobile(window.innerWidth <= 768);
   }, []);
+
+  useEffect(() => {
+    const updateGridSize = () => {
+      const offset = isMobile ? 20 : 80;
+      if (isMobile) {
+        setGridSize(Math.min(window.innerWidth - offset, window.innerHeight - offset));
+      } else {
+        const containerWidth = window.innerWidth * 0.65;
+        setGridSize(Math.min(containerWidth - offset, window.innerHeight - offset));
+      }
+    };
+    updateGridSize();
+    window.addEventListener('resize', updateGridSize);
+    return () => window.removeEventListener('resize', updateGridSize);
+  }, [isMobile]);
 
   const handleSwipe = (direction: string) => {
     const event = { key: '' };
@@ -454,15 +480,15 @@ const GameGrid: React.FC = () => {
         <>
           {/* Grid Section */}
           <div
-            className="flex items-center justify-center"
+            className="flex items-center justify-center mx-auto" // added mx-auto here
             style={{
               padding: '10px',
-              width: '100%',
-              height: 'calc(100vw - 20px)', // Square container
+              width: gridSize + "px",
+              height: gridSize + "px", // square container
             }}
           >
             <div
-              className="gap-0.5"
+              className="gap-0.5 mx-auto"
               style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
@@ -543,13 +569,53 @@ const GameGrid: React.FC = () => {
             <div className="flex-1 bg-white rounded-lg p-3 shadow-md flex flex-col">
               <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
               <div className="relative w-full flex-grow">
-                {/* SVG Connections Layer */}
+                {/* SVG Connections Layer for mobile - increased stroke width */}
                 <svg
                   className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                  viewBox={`0 0 ${400} ${500}`}
+                  viewBox="0 0 400 500"
                   preserveAspectRatio="none"
                 >
-                  {/* ...existing code for connections... */}
+                  {[
+                    [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
+                    [BASIC_RESOURCES[2], BASIC_RESOURCES[3], MATERIALS[1]],
+                    [BASIC_RESOURCES[4], BASIC_RESOURCES[5], MATERIALS[2]],
+                    [BASIC_RESOURCES[6], BASIC_RESOURCES[7], MATERIALS[3]]
+                  ].map(([input1, input2, output], index) => (
+                    <path
+                      key={`t1-${index}`}
+                      d={createYConnector(
+                        getResourcePosition(input1, 400, 500),
+                        getResourcePosition(input2, 400, 500),
+                        getResourcePosition(output, 400, 500)
+                      )}
+                      className="stroke-gray-400 fill-none"
+                      strokeWidth="3" // increased thickness for mobile connectors
+                    />
+                  ))}
+                  {[
+                    [MATERIALS[0], MATERIALS[1], COMPOUNDS[0]],
+                    [MATERIALS[2], MATERIALS[3], COMPOUNDS[1]]
+                  ].map(([input1, input2, output], index) => (
+                    <path
+                      key={`t2-${index}`}
+                      d={createYConnector(
+                        getResourcePosition(input1, 400, 500),
+                        getResourcePosition(input2, 400, 500),
+                        getResourcePosition(output, 400, 500)
+                      )}
+                      className="stroke-gray-400 fill-none"
+                      strokeWidth="3" // increased thickness for mobile connectors
+                    />
+                  ))}
+                  <path
+                    d={createYConnector(
+                      getResourcePosition(COMPOUNDS[0], 400, 500),
+                      getResourcePosition(COMPOUNDS[1], 400, 500),
+                      getResourcePosition(SUPER_ALLOY, 400, 500)
+                    )}
+                    className="stroke-gray-400 fill-none"
+                    strokeWidth="3" // increased thickness for mobile connectors
+                  />
                 </svg>
 
                 {/* Resource Icons Layer */}
@@ -609,19 +675,17 @@ const GameGrid: React.FC = () => {
       ) : (
         // Desktop Layout
         <div className="flex h-screen w-full">
-          {/* Game Grid - Left 65% */}
-          <div className="w-[65%] h-full flex items-center justify-center p-4 bg-cover bg-center"
-               style={{ backgroundImage: 'url("/moonscape.jpg")' }}
-          >
+          {/* Game Grid - Left panel */}
+          <div className="flex-1 h-full flex items-center justify-center p-4"
+               style={{ backgroundImage: 'url("/moonscape.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
             <div
               className="gap-0.5"
               style={{
+                width: `${gridSize}px`,
+                height: `${gridSize}px`,
                 display: 'grid',
                 gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
                 gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
-                // Use the smaller dimension of the container for both width and height
-                width: `min(calc(100% - 80px), calc(100vh - 80px))`,
-                height: `min(calc(100% - 80px), calc(100vh - 80px))`,
                 justifyContent: 'center',
                 alignContent: 'center',
               }}
