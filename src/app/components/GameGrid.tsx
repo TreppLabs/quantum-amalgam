@@ -259,14 +259,24 @@ const getResourcePosition = (resource: Resource, containerWidth: number, contain
 };
 
 const createYConnector = (input1: TierLayout, input2: TierLayout, output: TierLayout): string => {
-  const midY = (input1.connectorStart.y + output.connectorEnd.y) / 2;
-  const controlY = midY + ((output.connectorEnd.y - midY) / 2); // Adjust the vertical line to be shorter
-  return `M ${input1.connectorStart.x} ${input1.connectorStart.y} 
+  // Adjustment constants (tweak as desired)
+  const topAdjustment = 5;      // lower the top point (add to input start y)
+  const bendAdjustment = -5;    // raise the bend point (subtract from control y)
+  const outputAdjustment = -5;  // raise the output junction (subtract from output y)
+
+  const startY1 = input1.connectorStart.y + topAdjustment;
+  const startY2 = input2.connectorStart.y + topAdjustment;
+  const adjustedOutputY = output.connectorEnd.y + outputAdjustment;
+  const midY = (startY1 + adjustedOutputY) / 2;
+  const verticalFactor = 0.3;
+  let controlY = midY + (adjustedOutputY - midY) * verticalFactor;
+  controlY += bendAdjustment;
+  return `M ${input1.connectorStart.x} ${startY1} 
           L ${input1.connectorStart.x} ${controlY} 
-          L ${output.connectorEnd.x} ${output.connectorEnd.y} 
-          M ${input2.connectorStart.x} ${input2.connectorStart.y} 
+          L ${output.connectorEnd.x} ${adjustedOutputY} 
+          M ${input2.connectorStart.x} ${startY2} 
           L ${input2.connectorStart.x} ${controlY} 
-          L ${output.connectorEnd.x} ${output.connectorEnd.y}`;
+          L ${output.connectorEnd.x} ${adjustedOutputY}`;
 };
 
 const GameGrid: React.FC = () => {
