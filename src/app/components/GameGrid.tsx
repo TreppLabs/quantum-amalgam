@@ -569,13 +569,53 @@ const GameGrid: React.FC = () => {
             <div className="flex-1 bg-white rounded-lg p-3 shadow-md flex flex-col">
               <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
               <div className="relative w-full flex-grow">
-                {/* SVG Connections Layer */}
+                {/* SVG Connections Layer for mobile - increased stroke width */}
                 <svg
                   className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                  viewBox={`0 0 ${400} ${500}`}
+                  viewBox="0 0 400 500"
                   preserveAspectRatio="none"
                 >
-                  {/* ...existing code for connections... */}
+                  {[
+                    [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
+                    [BASIC_RESOURCES[2], BASIC_RESOURCES[3], MATERIALS[1]],
+                    [BASIC_RESOURCES[4], BASIC_RESOURCES[5], MATERIALS[2]],
+                    [BASIC_RESOURCES[6], BASIC_RESOURCES[7], MATERIALS[3]]
+                  ].map(([input1, input2, output], index) => (
+                    <path
+                      key={`t1-${index}`}
+                      d={createYConnector(
+                        getResourcePosition(input1, 400, 500),
+                        getResourcePosition(input2, 400, 500),
+                        getResourcePosition(output, 400, 500)
+                      )}
+                      className="stroke-gray-400 fill-none"
+                      strokeWidth="3" // increased thickness for mobile connectors
+                    />
+                  ))}
+                  {[
+                    [MATERIALS[0], MATERIALS[1], COMPOUNDS[0]],
+                    [MATERIALS[2], MATERIALS[3], COMPOUNDS[1]]
+                  ].map(([input1, input2, output], index) => (
+                    <path
+                      key={`t2-${index}`}
+                      d={createYConnector(
+                        getResourcePosition(input1, 400, 500),
+                        getResourcePosition(input2, 400, 500),
+                        getResourcePosition(output, 400, 500)
+                      )}
+                      className="stroke-gray-400 fill-none"
+                      strokeWidth="3" // increased thickness for mobile connectors
+                    />
+                  ))}
+                  <path
+                    d={createYConnector(
+                      getResourcePosition(COMPOUNDS[0], 400, 500),
+                      getResourcePosition(COMPOUNDS[1], 400, 500),
+                      getResourcePosition(SUPER_ALLOY, 400, 500)
+                    )}
+                    className="stroke-gray-400 fill-none"
+                    strokeWidth="3" // increased thickness for mobile connectors
+                  />
                 </svg>
 
                 {/* Resource Icons Layer */}
