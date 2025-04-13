@@ -275,11 +275,27 @@ const GameGrid: React.FC = () => {
   const [resources, setResources] = useState<Record<string, number>>({});
   const [showInstructions, setShowInstructions] = useState(false); // Popup closed initially
   const [isMobile, setIsMobile] = useState(false); // Detect mobile devices
+  const [gridSize, setGridSize] = useState(0);
 
   useEffect(() => {
     // Detect if the user is on a mobile device
     setIsMobile(window.innerWidth <= 768);
   }, []);
+
+  useEffect(() => {
+    const updateGridSize = () => {
+      const offset = isMobile ? 20 : 80;
+      if (isMobile) {
+        setGridSize(Math.min(window.innerWidth - offset, window.innerHeight - offset));
+      } else {
+        const containerWidth = window.innerWidth * 0.65;
+        setGridSize(Math.min(containerWidth - offset, window.innerHeight - offset));
+      }
+    };
+    updateGridSize();
+    window.addEventListener('resize', updateGridSize);
+    return () => window.removeEventListener('resize', updateGridSize);
+  }, [isMobile]);
 
   const handleSwipe = (direction: string) => {
     const event = { key: '' };
@@ -454,15 +470,15 @@ const GameGrid: React.FC = () => {
         <>
           {/* Grid Section */}
           <div
-            className="flex items-center justify-center"
+            className="flex items-center justify-center mx-auto" // added mx-auto here
             style={{
               padding: '10px',
-              width: '100%',
-              height: 'calc(100vw - 20px)', // Square container
+              width: gridSize + "px",
+              height: gridSize + "px", // square container
             }}
           >
             <div
-              className="gap-0.5"
+              className="gap-0.5 mx-auto"
               style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
@@ -609,19 +625,17 @@ const GameGrid: React.FC = () => {
       ) : (
         // Desktop Layout
         <div className="flex h-screen w-full">
-          {/* Game Grid - Left 65% */}
-          <div className="w-[65%] h-full flex items-center justify-center p-4 bg-cover bg-center"
-               style={{ backgroundImage: 'url("/moonscape.jpg")' }}
-          >
+          {/* Game Grid - Left panel */}
+          <div className="flex-1 h-full flex items-center justify-center p-4"
+               style={{ backgroundImage: 'url("/moonscape.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
             <div
               className="gap-0.5"
               style={{
+                width: `${gridSize}px`,
+                height: `${gridSize}px`,
                 display: 'grid',
                 gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
                 gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
-                // Use the smaller dimension of the container for both width and height
-                width: `min(calc(100% - 80px), calc(100vh - 80px))`,
-                height: `min(calc(100% - 80px), calc(100vh - 80px))`,
                 justifyContent: 'center',
                 alignContent: 'center',
               }}
