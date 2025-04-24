@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
+import DirectionalControls from './DirectionalControls';
 
 declare global {
   interface Window {
@@ -286,6 +287,8 @@ const GameGrid: React.FC = () => {
   const [showInstructions, setShowInstructions] = useState(false); // Popup closed initially
   const [isMobile, setIsMobile] = useState(false); // Detect mobile devices
   const [gridSize, setGridSize] = useState(0);
+  const [lastMoveTime, setLastMoveTime] = useState(0);
+  const MOVE_COOLDOWN = 300; // 300ms cooldown between moves
 
   useEffect(() => {
     // Detect if the user is on a mobile device
@@ -294,9 +297,11 @@ const GameGrid: React.FC = () => {
 
   useEffect(() => {
     const updateGridSize = () => {
-      const offset = isMobile ? 20 : 80;
+      const offset = isMobile ? 40 : 80; // Increased mobile offset
       if (isMobile) {
-        setGridSize(Math.min(window.innerWidth - offset, window.innerHeight - offset));
+        // For mobile, use the smaller dimension (width or height) minus offset
+        const minDimension = Math.min(window.innerWidth, window.innerHeight);
+        setGridSize(minDimension - offset);
       } else {
         const containerWidth = window.innerWidth * 0.65;
         setGridSize(Math.min(containerWidth - offset, window.innerHeight - offset));
@@ -308,29 +313,70 @@ const GameGrid: React.FC = () => {
   }, [isMobile]);
 
   const handleSwipe = (direction: string) => {
-    const event = { key: '' };
-    switch (direction) {
-      case 'up':
-        event.key = 'ArrowUp';
-        break;
-      case 'down':
-        event.key = 'ArrowDown';
-        break;
-      case 'left':
-        event.key = 'ArrowLeft';
-        break;
-      case 'right':
-        event.key = 'ArrowRight';
-        break;
+    const now = Date.now();
+    if (now - lastMoveTime < MOVE_COOLDOWN) {
+      return; // Ignore moves that are too close together
     }
-    handleKeyPress(event as KeyboardEvent);
+    setLastMoveTime(now);
+
+    // Use functional update so we always work with the latest grid.
+    setGrid(prevGrid => {
+      const newGrid = prevGrid.map(row => [...row]);
+      let changed = false;
+
+      for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+          if (prevGrid[row][col].owned) {
+            switch (direction) {
+              case 'up':
+                if (row > 0 && !prevGrid[row - 1][col].owned) {
+                  newGrid[row - 1][col] = { ...newGrid[row - 1][col], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+              case 'down':
+                if (row < GRID_SIZE - 1 && !prevGrid[row + 1][col].owned) {
+                  newGrid[row + 1][col] = { ...newGrid[row + 1][col], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+              case 'left':
+                if (col > 0 && !prevGrid[row][col - 1].owned) {
+                  newGrid[row][col - 1] = { ...newGrid[row][col - 1], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+              case 'right':
+                if (col < GRID_SIZE - 1 && !prevGrid[row][col + 1].owned) {
+                  newGrid[row][col + 1] = { ...newGrid[row][col + 1], owned: true, owner: 'player' };
+                  changed = true;
+                }
+                break;
+            }
+          }
+        }
+      }
+
+      if (changed) {
+        // Use functional update for resources as well.
+        setResources(prevResources => {
+          const combinedResources = combineResources(prevResources);
+          const { newGrid: minedGrid, newResources: finalResources } = mineResources(newGrid, combinedResources);
+          // Update grid and turn counter with the new state.
+          setGrid(minedGrid);
+          setTurnCount(prev => prev + 1);
+          return finalResources;
+        });
+      }
+      return prevGrid;
+    });
   };
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     const touch = e.touches[0];
     window.startX = touch.clientX;
     window.startY = touch.clientY;
-  }, []); // no "any" now
+  }, []);
 
   const handleTouchEnd = useCallback((e: TouchEvent) => {
     const touch = e.changedTouches[0];
@@ -346,16 +392,41 @@ const GameGrid: React.FC = () => {
       if (deltaY > 0) handleSwipe('down');
       else handleSwipe('up');
     }
-  }, [handleSwipe]); // added dependency
+  }, [handleSwipe]);
+
+  const handleKeyPress = useCallback((event: KeyboardEvent) => {
+    if (isMobile) return; // Ignore keyboard events on mobile
+    
+    let direction = '';
+    switch (event.key) {
+      case 'ArrowUp':
+        direction = 'up';
+        break;
+      case 'ArrowDown':
+        direction = 'down';
+        break;
+      case 'ArrowLeft':
+        direction = 'left';
+        break;
+      case 'ArrowRight':
+        direction = 'right';
+        break;
+      default:
+        return;
+    }
+    handleSwipe(direction);
+  }, [isMobile]);
 
   useEffect(() => {
     window.addEventListener('touchstart', handleTouchStart);
     window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('keydown', handleKeyPress);
     return () => {
       window.removeEventListener('touchstart', handleTouchStart);
       window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('keydown', handleKeyPress);
     };
-  }, [handleTouchStart, handleTouchEnd]);
+  }, [handleTouchStart, handleTouchEnd, handleKeyPress]);
 
   useEffect(() => {
     setGrid(createInitialGrid(true));
@@ -383,67 +454,6 @@ const GameGrid: React.FC = () => {
     }
     return { newGrid, newResources };
   }, []);
-
-  const handleKeyPress = useCallback((event: KeyboardEvent) => {
-    // Use functional update so we always work with the latest grid.
-    setGrid(prevGrid => {
-      const newGrid = prevGrid.map(row => [...row]);
-      let changed = false;
-
-      for (let row = 0; row < GRID_SIZE; row++) {
-        for (let col = 0; col < GRID_SIZE; col++) {
-          if (prevGrid[row][col].owned) {
-            switch (event.key) {
-              case 'ArrowUp':
-                if (row > 0 && !prevGrid[row - 1][col].owned) {
-                  newGrid[row - 1][col] = { ...newGrid[row - 1][col], owned: true, owner: 'player' };
-                  changed = true;
-                }
-                break;
-              case 'ArrowDown':
-                if (row < GRID_SIZE - 1 && !prevGrid[row + 1][col].owned) {
-                  newGrid[row + 1][col] = { ...newGrid[row + 1][col], owned: true, owner: 'player' };
-                  changed = true;
-                }
-                break;
-              case 'ArrowLeft':
-                if (col > 0 && !prevGrid[row][col - 1].owned) {
-                  newGrid[row][col - 1] = { ...newGrid[row][col - 1], owned: true, owner: 'player' };
-                  changed = true;
-                }
-                break;
-              case 'ArrowRight':
-                if (col < GRID_SIZE - 1 && !prevGrid[row][col + 1].owned) {
-                  newGrid[row][col + 1] = { ...newGrid[row][col + 1], owned: true, owner: 'player' };
-                  changed = true;
-                }
-                break;
-            }
-          }
-        }
-      }
-
-      if (changed) {
-        // Use functional update for resources as well.
-        setResources(prevResources => {
-          const combinedResources = combineResources(prevResources);
-          const { newGrid: minedGrid, newResources: finalResources } = mineResources(newGrid, combinedResources);
-          // Update grid and turn counter with the new state.
-          setGrid(minedGrid);
-          setTurnCount(prev => prev + 1);
-          return finalResources;
-        });
-      }
-      return prevGrid;
-    });
-  }, [mineResources]);
-
-  useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
-    return () => {
-      window.removeEventListener('keydown', handleKeyPress);
-    };
-  }, [handleKeyPress]);
 
   return (
     <div className={`flex ${isMobile ? 'flex-col' : 'h-screen'} w-full relative`}>
@@ -477,14 +487,14 @@ const GameGrid: React.FC = () => {
 
       {/* Mobile Layout */}
       {isMobile ? (
-        <>
-          {/* Grid Section */}
+        <div className="flex flex-col h-screen">
+          {/* Grid Section - Top */}
           <div
-            className="flex items-center justify-center mx-auto" // added mx-auto here
+            className="flex items-center justify-center mx-auto"
             style={{
               padding: '10px',
               width: gridSize + "px",
-              height: gridSize + "px", // square container
+              height: gridSize + "px",
             }}
           >
             <div
@@ -495,8 +505,6 @@ const GameGrid: React.FC = () => {
                 gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
                 width: '100%',
                 height: '100%',
-                justifyContent: 'center',
-                alignContent: 'center',
               }}
             >
               {grid.map((row) =>
@@ -510,10 +518,6 @@ const GameGrid: React.FC = () => {
                         : 'bg-gray-200 border-gray-400'
                       }
                     `}
-                    style={{
-                      width: '100%', // Let the grid container control the size
-                      height: '100%', // Let the grid container control the size
-                    }}
                   >
                     {cell.owned && (
                       <div className="w-4 h-4 bg-white rounded-full absolute" />
@@ -533,10 +537,10 @@ const GameGrid: React.FC = () => {
             </div>
           </div>
 
-          {/* Info and Manufacturing Section */}
-          <div className="flex flex-col w-full p-2 space-y-4" style={{ flexGrow: 1, height: 'calc(100vh - calc(100vw - 20px) - 20px)' }}>
-            {/* Game Info */}
-            <div className="flex-none bg-white rounded-lg p-3 shadow-md">
+          {/* Info and Controls Section - Middle */}
+          <div className="flex flex-row p-2 space-x-2">
+            {/* Game Info - Left 2/3 */}
+            <div className="flex-1 bg-white rounded-lg p-3 shadow-md">
               <div className="relative mb-3">
                 <div
                   className="text-sm font-semibold text-blue-600 cursor-pointer hover:underline"
@@ -565,113 +569,123 @@ const GameGrid: React.FC = () => {
               </div>
             </div>
 
-            {/* Manufacturing Section */}
-            <div className="flex-1 bg-white rounded-lg p-3 shadow-md flex flex-col">
-              <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
-              <div className="relative w-full flex-grow">
-                {/* SVG Connections Layer for mobile - increased stroke width */}
-                <svg
-                  className="absolute top-0 left-0 w-full h-full pointer-events-none"
-                  viewBox="0 0 400 500"
-                  preserveAspectRatio="none"
-                >
-                  {[
-                    [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
-                    [BASIC_RESOURCES[2], BASIC_RESOURCES[3], MATERIALS[1]],
-                    [BASIC_RESOURCES[4], BASIC_RESOURCES[5], MATERIALS[2]],
-                    [BASIC_RESOURCES[6], BASIC_RESOURCES[7], MATERIALS[3]]
-                  ].map(([input1, input2, output], index) => (
-                    <path
-                      key={`t1-${index}`}
-                      d={createYConnector(
-                        getResourcePosition(input1, 400, 500),
-                        getResourcePosition(input2, 400, 500),
-                        getResourcePosition(output, 400, 500)
-                      )}
-                      className="stroke-gray-400 fill-none"
-                      strokeWidth="3" // increased thickness for mobile connectors
-                    />
-                  ))}
-                  {[
-                    [MATERIALS[0], MATERIALS[1], COMPOUNDS[0]],
-                    [MATERIALS[2], MATERIALS[3], COMPOUNDS[1]]
-                  ].map(([input1, input2, output], index) => (
-                    <path
-                      key={`t2-${index}`}
-                      d={createYConnector(
-                        getResourcePosition(input1, 400, 500),
-                        getResourcePosition(input2, 400, 500),
-                        getResourcePosition(output, 400, 500)
-                      )}
-                      className="stroke-gray-400 fill-none"
-                      strokeWidth="3" // increased thickness for mobile connectors
-                    />
-                  ))}
-                  <path
-                    d={createYConnector(
-                      getResourcePosition(COMPOUNDS[0], 400, 500),
-                      getResourcePosition(COMPOUNDS[1], 400, 500),
-                      getResourcePosition(SUPER_ALLOY, 400, 500)
-                    )}
-                    className="stroke-gray-400 fill-none"
-                    strokeWidth="3" // increased thickness for mobile connectors
-                  />
-                </svg>
-
-                {/* Resource Icons Layer */}
-                {[...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY].map((resource) => {
-                  const pos = getResourcePosition(resource, 400, 500);
-                  return (
-                    <div
-                      key={resource.name}
-                      className="absolute transform -translate-x-1/2"
-                      style={{
-                        left: `${(pos.icon.x / 400) * 100}%`,
-                        top: `${(pos.icon.y / 500) * 100}%`,
-                      }}
-                    >
-                      <div
-                        className="text-[0.6rem] text-gray-600 text-center whitespace-nowrap absolute transform -translate-x-1/2"
-                        style={{
-                          left: '50%',
-                          top: '-16px',
-                        }}
-                      >
-                        {resource.name}
-                      </div>
-                      {resource.name === "Quantum Amalgam" ? (
-                        <Image
-                          src="/ingot.svg"
-                          alt="Quantum Amalgam"
-                          width={32}
-                          height={32}
-                          className="w-8 h-8"
-                        />
-                      ) : (
-                        <div
-                          className={`${resource.color} ${resource.iconClasses}`}
-                          style={{
-                            transform: `scale(${400 / 400}, ${500 / 500})`,
-                          }}
-                        />
-                      )}
-                      <div
-                        className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
-                        style={{
-                          width: '24px',
-                          left: '50%',
-                          top: '24px',
-                        }}
-                      >
-                        {resources[resource.name] || 0}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+            {/* Directional Controls - Right 1/3 */}
+            <div className="w-1/3 bg-white rounded-lg p-3 shadow-md flex items-center justify-center">
+              <DirectionalControls onDirectionClick={handleSwipe} />
             </div>
           </div>
-        </>
+
+          {/* Manufacturing Section - Bottom */}
+          <div className="flex-1 bg-white rounded-lg p-3 shadow-md m-2">
+            <div className="text-lg font-semibold mb-2 text-gray-800">Resource Manufacturing</div>
+            <div className="relative w-full h-[calc(100%-2rem)]">
+              {/* SVG Connections Layer */}
+              <svg
+                className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                viewBox={`0 0 ${400} ${500}`} // Use a fixed viewBox for scaling
+                preserveAspectRatio="none" // Allow the aspect ratio to stretch
+              >
+                {/* Tier 1 to Tier 2 connections */}
+                {[
+                  [BASIC_RESOURCES[0], BASIC_RESOURCES[1], MATERIALS[0]],
+                  [BASIC_RESOURCES[2], BASIC_RESOURCES[3], MATERIALS[1]],
+                  [BASIC_RESOURCES[4], BASIC_RESOURCES[5], MATERIALS[2]],
+                  [BASIC_RESOURCES[6], BASIC_RESOURCES[7], MATERIALS[3]]
+                ].map(([input1, input2, output], index) => (
+                  <path
+                    key={`t1-${index}`}
+                    d={createYConnector(
+                      getResourcePosition(input1, 400, 500),
+                      getResourcePosition(input2, 400, 500),
+                      getResourcePosition(output, 400, 500)
+                    )}
+                    className="stroke-gray-400 fill-none"
+                    strokeWidth="1.5"
+                  />
+                ))}
+
+                {/* Tier 2 to Tier 3 connections */}
+                {[
+                  [MATERIALS[0], MATERIALS[1], COMPOUNDS[0]],
+                  [MATERIALS[2], MATERIALS[3], COMPOUNDS[1]]
+                ].map(([input1, input2, output], index) => (
+                  <path
+                    key={`t2-${index}`}
+                    d={createYConnector(
+                      getResourcePosition(input1, 400, 500),
+                      getResourcePosition(input2, 400, 500),
+                      getResourcePosition(output, 400, 500)
+                    )}
+                    className="stroke-gray-400 fill-none"
+                    strokeWidth="1.5"
+                  />
+                ))}
+
+                {/* Tier 3 to Tier 4 connection */}
+                <path
+                  d={createYConnector(
+                    getResourcePosition(COMPOUNDS[0], 400, 500),
+                    getResourcePosition(COMPOUNDS[1], 400, 500),
+                    getResourcePosition(SUPER_ALLOY, 400, 500)
+                  )}
+                  className="stroke-gray-400 fill-none"
+                  strokeWidth="1.5"
+                />
+              </svg>
+
+              {/* Resource Icons Layer */}
+              {[...BASIC_RESOURCES, ...MATERIALS, ...COMPOUNDS, SUPER_ALLOY].map((resource) => {
+                const pos = getResourcePosition(resource, 400, 500);
+                return (
+                  <div
+                    key={resource.name}
+                    className="absolute transform -translate-x-1/2"
+                    style={{
+                      left: `${(pos.icon.x / 400) * 100}%`, // Scale position based on container width
+                      top: `${(pos.icon.y / 500) * 100}%` // Scale position based on container height
+                    }}
+                  >
+                    <div
+                      className="text-[0.6rem] text-gray-600 text-center whitespace-nowrap absolute transform -translate-x-1/2"
+                      style={{
+                        left: '50%',
+                        top: '-16px'
+                      }}
+                    >
+                      {resource.name}
+                    </div>
+                    {resource.name === "Quantum Amalgam" ? (
+                      <Image
+                        src="/ingot.svg"
+                        alt="Quantum Amalgam"
+                        width={32}
+                        height={32}
+                        className="w-8 h-8"
+                      />
+                    ) : (
+                      <div
+                        className={`${resource.color} ${resource.iconClasses}`}
+                        style={{
+                          transform: `scale(${400 / 400}, ${500 / 500})`, // Scale icons proportionally
+                        }}
+                      />
+                    )}
+                    <div
+                      className="text-xs text-gray-800 font-medium text-center absolute transform -translate-x-1/2"
+                      style={{
+                        width: '24px',
+                        left: '50%',
+                        top: '24px'
+                      }}
+                    >
+                      {resources[resource.name] || 0}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       ) : (
         // Desktop Layout
         <div className="flex h-screen w-full">
